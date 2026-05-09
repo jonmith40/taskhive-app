@@ -28,6 +28,7 @@ interface UserData {
   pushNotifications?: boolean;
   language?: string;
   timezone?: string;
+  avatarUrl?: string | null;
 }
 
 interface AuthContextType {
