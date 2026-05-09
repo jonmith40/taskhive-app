@@ -73,9 +73,14 @@ export default function WorkerDashboard() {
 
   // Account
   const [fullName, setFullName] = useState("");
+  const [profileImage, setProfileImage] = useState<string | null>(null);
   const [phoneNumber, setPhoneNumber] = useState("");
   const [nidNumber, setNidNumber] = useState("");
   const [nidStatus, setNidStatus] = useState("Unverified");
+
+  // Employer Profile Modal State
+  const [isEmployerModalOpen, setIsEmployerModalOpen] = useState(false);
+  const [selectedEmployer, setSelectedEmployer] = useState<any>(null);
 
   // Payment Methods
   const [bkashNumber, setBkashNumber] = useState("");
@@ -107,6 +112,7 @@ export default function WorkerDashboard() {
   useEffect(() => {
     if (userData) {
       setFullName(userData.fullName || "");
+      setProfileImage(userData.avatarUrl || null);
       setPhoneNumber(userData.phoneNumber || "");
       setNidNumber(userData.nidNumber || "");
       setNidStatus(userData.nidStatus || "Unverified");
@@ -283,6 +289,7 @@ export default function WorkerDashboard() {
         pushNotifications: pushNotif,
         language,
         timezone,
+        avatarUrl: profileImage,
         ...(nidNumber && nidNumber !== userData?.nidNumber && { nidStatus: 'Under Review' })
       });
       if (nidNumber && nidNumber !== userData?.nidNumber) {
@@ -295,6 +302,11 @@ export default function WorkerDashboard() {
     } finally {
       setIsSavingSettings(false);
     }
+  };
+
+  const handleOpenEmployerProfile = (id: string, name: string) => {
+    setSelectedEmployer({ id, name, avatarUrl: null }); // AvatarUrl mock for now
+    setIsEmployerModalOpen(true);
   };
 
   const handleUpdatePassword = async (e: React.FormEvent) => {
@@ -347,7 +359,11 @@ export default function WorkerDashboard() {
   };
 
   const filteredJobs = availableJobs.filter(job => {
-    const matchesSearch = job.title.toLowerCase().includes(searchTerm.toLowerCase()) || job.category.toLowerCase().includes(searchTerm.toLowerCase());
+    const searchLower = searchTerm.toLowerCase();
+    const matchesSearch = 
+      job.title.toLowerCase().includes(searchLower) || 
+      job.category.toLowerCase().includes(searchLower) ||
+      (job.description && job.description.toLowerCase().includes(searchLower));
     const matchesCategory = activeCategory === "All" || job.category === activeCategory;
     return matchesSearch && matchesCategory;
   });
@@ -603,7 +619,10 @@ export default function WorkerDashboard() {
                     </div>
                     <div>
                       <span className="text-white/50 text-xs uppercase tracking-wider font-medium block">{job.category}</span>
-                      <div className="flex items-center gap-1 text-[10px] mt-1 text-white/40">
+                      <div 
+                        onClick={(e) => { e.stopPropagation(); handleOpenEmployerProfile(job.employerId, "Verified Employer"); }}
+                        className="flex items-center gap-1 text-[10px] mt-1 text-white/40 hover:text-white transition-colors cursor-pointer"
+                      >
                         <UserIcon size={10} /> Employer <span className="text-yellow-400">⭐ 4.8</span>
                       </div>
                     </div>
@@ -708,6 +727,12 @@ export default function WorkerDashboard() {
                     </span>
                   </div>
                   <div className="flex items-center gap-4 text-sm">
+                    <div 
+                      onClick={() => handleOpenEmployerProfile(sub.employerId, "Verified Employer")}
+                      className="flex items-center gap-1 text-white/40 hover:text-white transition-colors cursor-pointer"
+                    >
+                      <UserIcon size={14} /> <span className="underline decoration-white/20 underline-offset-2">Employer Profile</span>
+                    </div>
                     <span className="text-white/40">{sub.jobCategory}</span>
                     <span className="text-[#7DF9AA] font-medium font-['Syne'] bg-[#7DF9AA]/10 px-3 py-1 rounded-lg border border-[#7DF9AA]/20">৳{(sub.parsedReward || 0).toFixed(2)}</span>
                   </div>
@@ -1054,6 +1079,37 @@ export default function WorkerDashboard() {
                 <form onSubmit={handleSaveSettings} className="space-y-6">
                   <h3 className="text-xl font-['Syne'] text-white mb-6 border-b border-white/10 pb-4">{t("settings.section_account")}</h3>
                   
+                  <div className="flex flex-col items-center mb-8">
+                    <div className="relative group cursor-pointer">
+                      <div className="w-24 h-24 rounded-full border-2 border-white/20 overflow-hidden bg-white/5 flex items-center justify-center shadow-[0_0_20px_rgba(255,255,255,0.05)]">
+                        {profileImage ? (
+                          <Image src={profileImage} alt="Profile" width={96} height={96} className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="text-3xl font-bold text-white/20">{getInitials()}</div>
+                        )}
+                      </div>
+                      <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity rounded-full">
+                        <Camera className="text-white w-6 h-6" />
+                      </div>
+                      <input 
+                        type="file" 
+                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" 
+                        accept="image/*"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            const reader = new FileReader();
+                            reader.onloadend = () => {
+                              setProfileImage(reader.result as string);
+                            };
+                            reader.readAsDataURL(file);
+                          }
+                        }}
+                      />
+                    </div>
+                    <p className="text-white/40 text-[10px] mt-3 uppercase tracking-widest font-bold">{t("settings.profile_picture") || "Profile Picture"}</p>
+                  </div>
+
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
                       <label className="block text-xs text-white/50 uppercase tracking-widest mb-2 font-medium">{t("settings.full_name")}</label>
@@ -1613,6 +1669,102 @@ export default function WorkerDashboard() {
               >
                 Submit Appeal
               </motion.button>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Employer Public Profile Modal */}
+      <AnimatePresence>
+        {isEmployerModalOpen && (
+          <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-black/80 backdrop-blur-xl" 
+              onClick={() => setIsEmployerModalOpen(false)}
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="relative w-full max-w-md glass border border-white/20 rounded-[2.5rem] p-8 shadow-[0_0_50px_rgba(125,249,170,0.1)] overflow-hidden bg-[#050508]/60"
+            >
+              <div className="absolute top-0 right-0 w-40 h-40 bg-[#7DF9AA]/5 rounded-full blur-[60px] pointer-events-none" />
+              
+              <button 
+                onClick={() => setIsEmployerModalOpen(false)}
+                className="absolute top-6 right-6 w-10 h-10 flex items-center justify-center rounded-full bg-white/5 text-white/40 hover:text-white hover:bg-white/10 transition-colors z-20"
+              >
+                <X size={20} />
+              </button>
+
+              <div className="relative z-10 text-center">
+                <div className="w-24 h-24 rounded-full bg-gradient-to-br from-white/10 to-transparent border border-white/20 mx-auto flex items-center justify-center text-white text-3xl font-bold mb-4 shadow-xl overflow-hidden">
+                  {selectedEmployer?.avatarUrl ? (
+                    <Image src={selectedEmployer.avatarUrl} alt="Avatar" width={96} height={96} className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full bg-[#7DF9AA]/10 flex items-center justify-center text-[#7DF9AA]">
+                      {selectedEmployer?.name?.substring(0, 2).toUpperCase() || "EP"}
+                    </div>
+                  )}
+                </div>
+                
+                <h2 className="text-3xl font-bold text-white font-['Syne'] mb-1">{selectedEmployer?.name || "Premium Employer"}</h2>
+                <div className="flex items-center justify-center gap-2 mb-6">
+                  <span className="text-[#7DF9AA] text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full bg-[#7DF9AA]/10 border border-[#7DF9AA]/20">Verified</span>
+                  <div className="flex items-center text-yellow-400 text-xs gap-1">
+                    <span className="font-bold">4.9</span>
+                    <span>★★★★★</span>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-3 mb-8">
+                  <div className="bg-white/5 rounded-2xl p-4 border border-white/10 hover:border-[#7DF9AA]/30 transition-colors">
+                    <p className="text-white/40 text-[9px] uppercase tracking-tighter mb-1 font-bold">Jobs Posted</p>
+                    <p className="text-white font-bold text-xl">142</p>
+                  </div>
+                  <div className="bg-white/5 rounded-2xl p-4 border border-white/10 hover:border-[#7DF9AA]/30 transition-colors">
+                    <p className="text-white/40 text-[9px] uppercase tracking-tighter mb-1 font-bold">Success Rate</p>
+                    <p className="text-[#7DF9AA] font-bold text-xl">99%</p>
+                  </div>
+                  <div className="bg-white/5 rounded-2xl p-4 border border-white/10 hover:border-[#7DF9AA]/30 transition-colors">
+                    <p className="text-white/40 text-[9px] uppercase tracking-tighter mb-1 font-bold">Avg. Pay</p>
+                    <p className="text-white font-bold text-xl">৳12.5</p>
+                  </div>
+                </div>
+
+                <div className="space-y-3 text-left bg-white/5 rounded-2xl p-5 border border-white/10 mb-8">
+                  <div className="flex items-center gap-3 text-white/60 text-sm">
+                    <div className="w-8 h-8 rounded-full bg-[#7DF9AA]/10 flex items-center justify-center flex-shrink-0 text-[#7DF9AA]">
+                      <CheckCircle2 size={14} />
+                    </div>
+                    <span className="font-light">Instant payment after approval</span>
+                  </div>
+                  <div className="flex items-center gap-3 text-white/60 text-sm">
+                    <div className="w-8 h-8 rounded-full bg-blue-500/10 flex items-center justify-center flex-shrink-0 text-blue-400">
+                      <Briefcase size={14} />
+                    </div>
+                    <span className="font-light">Member since January 2024</span>
+                  </div>
+                  <div className="flex items-center gap-3 text-white/60 text-sm">
+                    <div className="w-8 h-8 rounded-full bg-orange-500/10 flex items-center justify-center flex-shrink-0 text-orange-400">
+                      <TrendingUp size={14} />
+                    </div>
+                    <span className="font-light">High activity & low dispute rate</span>
+                  </div>
+                </div>
+
+                <motion.button 
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => setIsEmployerModalOpen(false)}
+                  className="w-full py-4 rounded-2xl bg-[#7DF9AA] text-black font-bold text-lg shadow-[0_0_20px_rgba(125,249,170,0.3)] hover:bg-[#7DF9AA]/90 transition-all"
+                >
+                  View Open Jobs
+                </motion.button>
+              </div>
             </motion.div>
           </div>
         )}

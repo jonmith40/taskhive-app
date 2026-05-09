@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { useRouter } from "next/navigation";
-import { Menu, X, LogOut, Mail, Lock, User as UserIcon, Globe } from "lucide-react";
+import { Menu, X, LogOut, Mail, Lock, User as UserIcon, Globe, Bell, CheckCircle2, AlertCircle, Wallet, Check } from "lucide-react";
 import Link from "next/link";
 import { useApp } from "@/lib/app-context";
 import TaskHiveLogo from "./TaskHiveLogo";
@@ -31,6 +31,25 @@ export default function DashboardLayout({ children, role, navItems, activeTab, s
   const [selectedRole, setSelectedRole] = useState<"worker" | "employer">("worker");
   const [authError, setAuthError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Notification State
+  const [isNotifOpen, setIsNotifOpen] = useState(false);
+  const [notifications, setNotifications] = useState([
+    { id: 1, text: "Your submission for 'YouTube Subscribe' was approved!", time: "2m ago", read: false, type: 'success' },
+    { id: 2, text: "৳5.00 has been added to your wallet", time: "1h ago", read: false, type: 'wallet' },
+    { id: 3, text: "New high-paying job available in YouTube category", time: "3h ago", read: true, type: 'info' },
+    { id: 4, text: "Your NID verification is under review", time: "5h ago", read: true, type: 'alert' },
+  ]);
+
+  const unreadCount = notifications.filter(n => !n.read).length;
+
+  const markAllAsRead = () => {
+    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+  };
+
+  const markAsRead = (id: number) => {
+    setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
+  };
 
   // Protect incorrect dashboard access
   useEffect(() => {
@@ -330,12 +349,97 @@ export default function DashboardLayout({ children, role, navItems, activeTab, s
             </button>
 
             {/* Notification Bell */}
-            <button className="w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 transition-all hidden sm:flex">
-              <span className="relative flex h-3 w-3">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#7DF9AA] opacity-40"></span>
-                <span className="relative inline-flex rounded-full h-3 w-3 bg-[#7DF9AA]"></span>
-              </span>
-            </button>
+            <div className="relative">
+              <button 
+                onClick={() => setIsNotifOpen(!isNotifOpen)}
+                className={`w-10 h-10 rounded-full flex items-center justify-center transition-all border ${
+                  isNotifOpen ? "bg-white/10 border-white/20 text-white" : "bg-white/5 border-white/10 text-white/50 hover:text-white hover:bg-white/10"
+                }`}
+              >
+                <Bell size={20} className={isNotifOpen ? "fill-white/10" : ""} />
+                {unreadCount > 0 && (
+                  <span className="absolute top-0 right-0 flex h-4 w-4">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-500 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-4 w-4 bg-red-500 text-[10px] font-bold text-white items-center justify-center border border-[#050508]">
+                      {unreadCount}
+                    </span>
+                  </span>
+                )}
+              </button>
+
+              <AnimatePresence>
+                {isNotifOpen && (
+                  <>
+                    {/* Backdrop for closing */}
+                    <div className="fixed inset-0 z-40" onClick={() => setIsNotifOpen(false)} />
+                    
+                    <motion.div 
+                      initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                      transition={{ duration: 0.2, ease: "easeOut" }}
+                      className="absolute right-0 mt-3 w-80 sm:w-96 glass border border-white/20 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] z-50 overflow-hidden backdrop-blur-2xl bg-[#050508]/80"
+                    >
+                      <div className="p-4 border-b border-white/10 flex items-center justify-between bg-white/5">
+                        <h3 className="font-['Syne'] font-bold text-sm tracking-wide text-white">Notifications</h3>
+                        <button 
+                          onClick={markAllAsRead}
+                          className="text-[10px] font-bold uppercase tracking-widest text-[#7DF9AA] hover:text-white transition-colors"
+                        >
+                          Mark all as read
+                        </button>
+                      </div>
+
+                      <div className="max-h-[400px] overflow-y-auto custom-scrollbar">
+                        {notifications.length === 0 ? (
+                          <div className="p-10 text-center">
+                            <Bell className="mx-auto text-white/10 mb-2" size={32} />
+                            <p className="text-white/30 text-sm">No notifications yet</p>
+                          </div>
+                        ) : (
+                          notifications.map((notif) => (
+                            <div 
+                              key={notif.id}
+                              onClick={() => markAsRead(notif.id)}
+                              className={`p-4 border-b border-white/5 cursor-pointer transition-all hover:bg-white/5 flex gap-4 group ${!notif.read ? "bg-white/[0.03]" : ""}`}
+                            >
+                              <div className={`w-10 h-10 rounded-full flex-shrink-0 flex items-center justify-center border ${
+                                notif.type === 'success' ? "bg-green-500/10 border-green-500/20 text-green-400" :
+                                notif.type === 'wallet' ? "bg-[#7DF9AA]/10 border-[#7DF9AA]/20 text-[#7DF9AA]" :
+                                notif.type === 'alert' ? "bg-orange-500/10 border-orange-500/20 text-orange-400" :
+                                "bg-blue-500/10 border-blue-500/20 text-blue-400"
+                              }`}>
+                                {notif.type === 'success' && <CheckCircle2 size={16} />}
+                                {notif.type === 'wallet' && <Wallet size={16} />}
+                                {notif.type === 'alert' && <AlertCircle size={16} />}
+                                {notif.type === 'info' && <Bell size={16} />}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className={`text-xs leading-relaxed transition-colors ${!notif.read ? "text-white font-medium" : "text-white/50"}`}>
+                                  {notif.text}
+                                </p>
+                                <p className="text-[10px] text-white/30 mt-1 font-medium">{notif.time}</p>
+                              </div>
+                              {!notif.read && (
+                                <div className="mt-1 flex-shrink-0">
+                                  <div className="w-2 h-2 rounded-full bg-[#7DF9AA] shadow-[0_0_8px_#7DF9AA]"></div>
+                                </div>
+                              )}
+                            </div>
+                          ))
+                        )}
+                      </div>
+
+                      <div className="p-3 bg-white/5 border-t border-white/10 text-center">
+                        <button className="text-[11px] font-bold text-white/40 hover:text-white transition-colors uppercase tracking-widest">
+                          View all notifications
+                        </button>
+                      </div>
+                    </motion.div>
+                  </>
+                )}
+              </AnimatePresence>
+            </div>
           </div>
         </header>
 

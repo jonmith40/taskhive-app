@@ -67,6 +67,7 @@ export default function EmployerDashboard() {
 
   // Account
   const [fullName, setFullName] = useState("");
+  const [profileImage, setProfileImage] = useState<string | null>(null);
   const [phoneNumber, setPhoneNumber] = useState("");
   const [nidNumber, setNidNumber] = useState("");
   const [nidStatus, setNidStatus] = useState("Unverified");
@@ -106,6 +107,7 @@ export default function EmployerDashboard() {
   useEffect(() => {
     if (userData) {
       setFullName(userData.fullName || "");
+      setProfileImage(userData.avatarUrl || null);
       setPhoneNumber(userData.phoneNumber || "");
       setNidNumber(userData.nidNumber || "");
       setNidStatus(userData.nidStatus || "Unverified");
@@ -318,6 +320,7 @@ export default function EmployerDashboard() {
         pushNotifications: pushNotif,
         language,
         timezone,
+        avatarUrl: profileImage,
         // Optional: transition nidStatus to Under Review if new NID provided
         ...(nidNumber && nidNumber !== userData?.nidNumber && { nidStatus: 'Under Review' })
       });
@@ -1006,6 +1009,37 @@ export default function EmployerDashboard() {
                 <form onSubmit={handleSaveSettings} className="space-y-6">
                   <h3 className="text-xl font-['Syne'] text-white mb-6 border-b border-white/10 pb-4">{t("settings.section_account")}</h3>
                   
+                  <div className="flex flex-col items-center mb-8">
+                    <div className="relative group cursor-pointer">
+                      <div className="w-24 h-24 rounded-full border-2 border-white/20 overflow-hidden bg-white/5 flex items-center justify-center shadow-[0_0_20px_rgba(255,255,255,0.05)]">
+                        {profileImage ? (
+                          <Image src={profileImage} alt="Profile" width={96} height={96} className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="text-3xl font-bold text-white/20">{getInitials()}</div>
+                        )}
+                      </div>
+                      <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity rounded-full">
+                        <Camera className="text-white w-6 h-6" />
+                      </div>
+                      <input 
+                        type="file" 
+                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" 
+                        accept="image/*"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            const reader = new FileReader();
+                            reader.onloadend = () => {
+                              setProfileImage(reader.result as string);
+                            };
+                            reader.readAsDataURL(file);
+                          }
+                        }}
+                      />
+                    </div>
+                    <p className="text-white/40 text-[10px] mt-3 uppercase tracking-widest font-bold">{t("settings.profile_picture") || "Profile Picture"}</p>
+                  </div>
+
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
                       <label className="block text-xs text-[#7DF9AA] uppercase tracking-widest mb-2 font-medium">{t("settings.full_name")}</label>
